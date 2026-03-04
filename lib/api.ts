@@ -51,7 +51,7 @@ export interface Position {
 }
 
 async function fetchJSON<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, { next: { revalidate: 15 } })
+  const res = await fetch(`${API_BASE}${path}`, { cache: 'no-store' })
   if (!res.ok) throw new Error(`${path} → ${res.status}`)
   return res.json()
 }
