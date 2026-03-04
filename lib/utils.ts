@@ -5,7 +5,14 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export const fmt$ = (n: number, d = 2) => `$${n.toFixed(d)}`
+/** Format dollars — uses K/M/B for large numbers */
+export function fmt$(n: number, d = 2): string {
+  if (Math.abs(n) >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1)}B`
+  if (Math.abs(n) >= 1_000_000)     return `$${(n / 1_000_000).toFixed(1)}M`
+  if (Math.abs(n) >= 1_000 && d === 0) return `$${(n / 1_000).toFixed(1)}K`
+  return `$${n.toFixed(d)}`
+}
+
 export const fmtPct = (n: number, d = 1) => `${(n * 100).toFixed(d)}%`
 
 export function fmtUptime(s: number): string {
