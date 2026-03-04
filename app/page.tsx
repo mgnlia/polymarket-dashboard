@@ -5,15 +5,15 @@ import {
   api,
   MOCK_STATUS, MOCK_RISK, MOCK_REWARDS, MOCK_MARKETS, MOCK_POSITIONS,
   type BotStatus, type RiskSummary, type RewardSummary, type Market, type Position,
-} from '@/lib/api'
-import { fmt$, fmtUptime } from '@/lib/utils'
-import StatCard from '@/components/StatCard'
-import BotStatusBadge from '@/components/BotStatusBadge'
-import RewardChart from '@/components/RewardChart'
-import MarketsTable from '@/components/MarketsTable'
-import PositionsTable from '@/components/PositionsTable'
-import AirdropScore from '@/components/AirdropScore'
-import RewardBreakdown from '@/components/RewardBreakdown'
+} from '../lib/api'
+import { fmt$, fmtUptime } from '../lib/utils'
+import StatCard from '../components/StatCard'
+import BotStatusBadge from '../components/BotStatusBadge'
+import RewardChart from '../components/RewardChart'
+import MarketsTable from '../components/MarketsTable'
+import PositionsTable from '../components/PositionsTable'
+import AirdropScore from '../components/AirdropScore'
+import RewardBreakdown from '../components/RewardBreakdown'
 
 interface DashData {
   status: BotStatus
@@ -89,16 +89,16 @@ export default function DashboardPage() {
             value={(pnlPositive ? '+' : '') + fmt$(risk.daily_pnl)}
             sub={pnlPositive ? '▲ today' : '▼ today'}
             trend={pnlPositive ? 'up' : 'down'}
-            valueClass={pnlPositive ? 'text-green-400' : 'text-red-400'}
+            accent={pnlPositive ? 'text-green-400' : 'text-red-400'}
           />
           <StatCard
             label="Total P&L"
             value={(risk.total_realized_pnl >= 0 ? '+' : '') + fmt$(risk.total_realized_pnl)}
             trend={risk.total_realized_pnl >= 0 ? 'up' : 'down'}
-            valueClass={risk.total_realized_pnl >= 0 ? 'text-green-400' : 'text-red-400'}
+            accent={risk.total_realized_pnl >= 0 ? 'text-green-400' : 'text-red-400'}
           />
-          <StatCard label="Today Rewards" value={fmt$(rewards.today_usdc)} sub={`Week: ${fmt$(rewards.week_usdc)}`} trend="up" valueClass="text-green-400" />
-          <StatCard label="Total Rewards" value={fmt$(rewards.total_usdc)} sub={`Month: ${fmt$(rewards.month_usdc)}`} trend="up" valueClass="text-green-400" />
+          <StatCard label="Today Rewards" value={fmt$(rewards.today_usdc)} sub={`Week: ${fmt$(rewards.week_usdc)}`} trend="up" accent="text-green-400" />
+          <StatCard label="Total Rewards" value={fmt$(rewards.total_usdc)} sub={`Month: ${fmt$(rewards.month_usdc)}`} trend="up" accent="text-green-400" />
           <StatCard label="Uptime" value={fmtUptime(status.uptime_s)} sub={`${status.quote_cycles} cycles`} trend="neutral" />
         </section>
 
