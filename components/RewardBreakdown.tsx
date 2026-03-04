@@ -1,6 +1,6 @@
 'use client'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts'
-import type { RewardSummary } from '@/lib/api'
+import type { RewardSummary } from '../lib/api'
 
 const COLORS = ['#22c55e', '#60a5fa', '#f59e0b', '#a78bfa', '#f87171', '#34d399']
 
