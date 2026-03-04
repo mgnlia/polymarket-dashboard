@@ -1,264 +1,244 @@
 'use client'
-import { useState } from 'react'
 import { type UseMarketsReturn, type SortKey } from '@/lib/hooks'
-import { fmt$, fmtPct, cn } from '@/lib/utils'
-import type { LiveMarket } from '@/lib/gamma'
+import { fmt$, fmtPct, fmtDate, timeSince } from '@/lib/utils'
+import { type LiveMarket } from '@/lib/gamma'
 
-interface Props {
-  hook: UseMarketsReturn
-}
+interface Props { hook: UseMarketsReturn }
 
-const SORT_COLS: { key: SortKey; label: string }[] = [
-  { key: 'volume_24h',   label: 'Vol 24h' },
-  { key: 'liquidity',    label: 'Liquidity' },
-  { key: 'reward_score', label: 'Score' },
-  { key: 'spread',       label: 'Spread' },
-  { key: 'end_date',     label: 'Ends' },
-]
-
-function ScoreBadge({ score }: { score: number }) {
-  const color = score > 0.7 ? 'text-green-400 bg-green-400/10 border-green-500/30'
-              : score > 0.4 ? 'text-yellow-400 bg-yellow-400/10 border-yellow-500/30'
-              :                'text-slate-400 bg-slate-400/10 border-slate-600/30'
+function PriceBar({ yes, no }: { yes: number; no: number }) {
+  const yPct = Math.round(yes * 100)
   return (
-    <span className={cn('px-2 py-0.5 rounded border text-xs font-mono font-semibold', color)}>
-      {score.toFixed(2)}
-    </span>
-  )
-}
-
-function CategoryBadge({ cat }: { cat: string }) {
-  const colors: Record<string, string> = {
-    politics:   'text-blue-300 bg-blue-500/10 border-blue-500/30',
-    crypto:     'text-orange-300 bg-orange-500/10 border-orange-500/30',
-    sports:     'text-green-300 bg-green-500/10 border-green-500/30',
-    economics:  'text-purple-300 bg-purple-500/10 border-purple-500/30',
-    science:    'text-cyan-300 bg-cyan-500/10 border-cyan-500/30',
-    general:    'text-slate-300 bg-slate-500/10 border-slate-600/30',
-  }
-  const c = colors[cat?.toLowerCase()] ?? colors.general
-  return (
-    <span className={cn('px-1.5 py-0.5 rounded border text-xs truncate max-w-[80px]', c)}>
-      {cat}
-    </span>
+    <div className="flex items-center gap-1">
+      <div className="flex h-1.5 w-16 rounded-full overflow-hidden bg-slate-700">
+        <div className="bg-green-500" style={{ width: `${yPct}%` }} />
+        <div className="bg-red-500"   style={{ width: `${100 - yPct}%` }} />
+      </div>
+    </div>
   )
 }
 
 function MarketRow({ m }: { m: LiveMarket }) {
-  const [expanded, setExpanded] = useState(false)
-  const daysLeft = m.end_date
-    ? Math.ceil((new Date(m.end_date).getTime() - Date.now()) / 86_400_000)
-    : null
-  const urgent = daysLeft !== null && daysLeft <= 7
+  const url = `https://polymarket.com/event/${m.slug}`
+  const yPct = Math.round(m.yes_price * 100)
+  const nPct = 100 - yPct
 
   return (
-    <>
-      <tr
-        onClick={() => setExpanded(e => !e)}
-        className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors cursor-pointer"
-      >
-        <td className="px-4 py-3 max-w-[260px]">
-          <div className="flex items-start gap-2">
-            {m.image && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={m.image} alt="" className="w-6 h-6 rounded shrink-0 mt-0.5 object-cover" />
-            )}
-            <div className="min-w-0">
-              <p className="text-slate-200 text-xs leading-snug line-clamp-2">{m.question}</p>
+    <tr className="border-b border-slate-800/60 hover:bg-slate-800/40 transition-colors group">
+      {/* Market */}
+      <td className="py-3 px-3">
+        <div className="flex items-start gap-2.5 max-w-xs">
+          {m.image && (
+            <img
+              src={m.image}
+              alt=""
+              className="w-7 h-7 rounded-md object-cover flex-shrink-0 mt-0.5"
+              onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+            />
+          )}
+          <div>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-slate-200 group-hover:text-blue-400 transition-colors line-clamp-2 leading-snug"
+            >
+              {m.question}
+            </a>
+            <div className="flex items-center gap-1.5 mt-1">
+              {m.category && (
+                <span className="text-[10px] text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded">
+                  {m.category}
+                </span>
+              )}
               {m.has_rewards && (
-                <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] text-green-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
-                  Rewards
+                <span className="text-[10px] text-yellow-400 bg-yellow-400/10 px-1.5 py-0.5 rounded font-semibold">
+                  REWARDS
                 </span>
               )}
             </div>
           </div>
-        </td>
-        <td className="px-3 py-3"><CategoryBadge cat={m.category} /></td>
-        <td className="px-3 py-3 font-mono text-green-400 text-sm">{fmtPct(m.yes_price)}</td>
-        <td className="px-3 py-3 font-mono text-red-400 text-sm">{fmtPct(m.no_price)}</td>
-        <td className="px-3 py-3 text-slate-300 font-mono text-sm whitespace-nowrap">{fmt$(m.volume_24h, 0)}</td>
-        <td className="px-3 py-3 text-slate-300 font-mono text-sm whitespace-nowrap">{fmt$(m.liquidity, 0)}</td>
-        <td className="px-3 py-3 font-mono text-sm">
-          <span className={m.spread > 0.03 ? 'text-yellow-400' : 'text-slate-400'}>
-            {(m.spread * 100).toFixed(1)}%
+        </div>
+      </td>
+
+      {/* YES price */}
+      <td className="py-3 px-3 text-right">
+        <div className="flex flex-col items-end gap-1">
+          <span className={`text-sm font-mono font-semibold ${yPct >= 50 ? 'text-green-400' : 'text-slate-400'}`}>
+            {yPct}¢
           </span>
-        </td>
-        <td className="px-3 py-3">
-          {daysLeft !== null && (
-            <span className={cn('text-xs font-mono', urgent ? 'text-red-400' : 'text-slate-400')}>
-              {daysLeft}d
-            </span>
-          )}
-        </td>
-        <td className="px-3 py-3"><ScoreBadge score={m.reward_score} /></td>
-      </tr>
-      {expanded && (
-        <tr className="border-b border-slate-800/50 bg-slate-900/40">
-          <td colSpan={9} className="px-4 py-3">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-              <div>
-                <p className="text-slate-500 mb-0.5">Total Volume</p>
-                <p className="text-slate-200 font-mono">{fmt$(m.volume_total, 0)}</p>
-              </div>
-              <div>
-                <p className="text-slate-500 mb-0.5">Best Bid / Ask</p>
-                <p className="text-slate-200 font-mono">{fmtPct(m.best_bid)} / {fmtPct(m.best_ask)}</p>
-              </div>
-              <div>
-                <p className="text-slate-500 mb-0.5">Rewards Min Size</p>
-                <p className="text-slate-200 font-mono">${m.rewards_min_size}</p>
-              </div>
-              <div>
-                <p className="text-slate-500 mb-0.5">Max Spread for Rewards</p>
-                <p className="text-slate-200 font-mono">{m.rewards_max_spread}¢</p>
-              </div>
-              <div className="col-span-2 sm:col-span-4">
-                <p className="text-slate-500 mb-0.5">Polymarket Link</p>
-                <a
-                  href={`https://polymarket.com/event/${m.slug}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={e => e.stopPropagation()}
-                  className="text-blue-400 hover:text-blue-300 underline"
-                >
-                  polymarket.com/event/{m.slug}
-                </a>
-              </div>
-            </div>
-          </td>
-        </tr>
-      )}
-    </>
+          <span className={`text-xs font-mono ${nPct >= 50 ? 'text-red-400' : 'text-slate-500'}`}>
+            {nPct}¢
+          </span>
+        </div>
+      </td>
+
+      {/* Price bar */}
+      <td className="py-3 px-3">
+        <PriceBar yes={m.yes_price} no={m.no_price} />
+      </td>
+
+      {/* 24h Volume */}
+      <td className="py-3 px-3 text-right">
+        <span className="text-xs font-mono text-slate-300">{fmt$(m.volume_24h, 0)}</span>
+      </td>
+
+      {/* Liquidity */}
+      <td className="py-3 px-3 text-right">
+        <span className="text-xs font-mono text-slate-400">{fmt$(m.liquidity, 0)}</span>
+      </td>
+
+      {/* Reward score */}
+      <td className="py-3 px-3 text-right">
+        <div className="flex flex-col items-end gap-0.5">
+          <span className={`text-xs font-mono font-semibold ${
+            m.reward_score >= 0.5 ? 'text-yellow-400' :
+            m.reward_score >= 0.25 ? 'text-slate-300' : 'text-slate-500'
+          }`}>
+            {Math.round(m.reward_score * 100)}
+          </span>
+          <div className="w-12 h-1 bg-slate-700 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-yellow-400 rounded-full"
+              style={{ width: `${m.reward_score * 100}%` }}
+            />
+          </div>
+        </div>
+      </td>
+
+      {/* Spread */}
+      <td className="py-3 px-3 text-right">
+        <span className={`text-xs font-mono ${m.spread > 0.02 ? 'text-orange-400' : 'text-slate-400'}`}>
+          {m.spread > 0 ? fmtPct(m.spread) : '—'}
+        </span>
+      </td>
+
+      {/* End date */}
+      <td className="py-3 px-3 text-right">
+        <span className="text-xs text-slate-500">{fmtDate(m.end_date)}</span>
+      </td>
+    </tr>
   )
 }
 
 export default function LiveMarketsTable({ hook }: Props) {
   const {
-    filtered, categories, loading, error, lastUpdated, refresh,
-    category, setCategory, sortBy, setSortBy, sortAsc, setSortAsc,
-    searchQuery, setSearchQuery, rewardsOnly, setRewardsOnly,
+    filtered, loading, error, lastUpdated, refresh,
+    category, setCategory, categories,
+    sortBy, setSortBy,
+    searchQuery, setSearchQuery,
+    rewardsOnly, setRewardsOnly,
   } = hook
 
   function toggleSort(key: SortKey) {
-    if (sortBy === key) setSortAsc(!sortAsc)
-    else { setSortBy(key); setSortAsc(false) }
+    if (sortBy === key) hook.setSortAsc(!hook.sortAsc)
+    else { setSortBy(key); hook.setSortAsc(false) }
   }
 
-  return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden backdrop-blur-sm">
-      {/* Header */}
-      <div className="px-5 py-4 border-b border-slate-800 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <h3 className="text-sm font-semibold text-slate-300 whitespace-nowrap">Live Markets</h3>
-          {loading && <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />}
-          {!loading && !error && <span className="w-2 h-2 rounded-full bg-green-400" />}
-          {error && <span className="text-xs text-red-400">{error}</span>}
-          {lastUpdated && (
-            <span className="text-xs text-slate-500 hidden sm:block">
-              Updated {lastUpdated.toLocaleTimeString()}
-            </span>
-          )}
-        </div>
-        <button
-          onClick={refresh}
-          className="text-xs text-slate-400 hover:text-slate-200 px-2 py-1 rounded border border-slate-700 hover:border-slate-500 transition-colors"
-        >
-          ↻ Refresh
-        </button>
-      </div>
+  const SortTh = ({ k, label }: { k: SortKey; label: string }) => (
+    <th
+      className={`py-2 px-3 text-right text-[10px] uppercase tracking-wider cursor-pointer select-none whitespace-nowrap ${
+        sortBy === k ? 'text-blue-400' : 'text-slate-500 hover:text-slate-300'
+      }`}
+      onClick={() => toggleSort(k)}
+    >
+      {label}{sortBy === k ? (hook.sortAsc ? ' ↑' : ' ↓') : ''}
+    </th>
+  )
 
-      {/* Filters */}
-      <div className="px-5 py-3 border-b border-slate-800 flex flex-wrap gap-2 items-center">
+  return (
+    <div className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-3 p-4 border-b border-slate-800">
         {/* Search */}
         <input
           type="text"
+          placeholder="Search markets…"
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
-          placeholder="Search markets…"
-          className="flex-1 min-w-[160px] max-w-xs bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-slate-500"
+          className="flex-1 min-w-[160px] bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500"
         />
-        {/* Category pills */}
-        <div className="flex flex-wrap gap-1">
-          {categories.slice(0, 8).map(cat => (
-            <button
-              key={cat}
-              onClick={() => setCategory(cat)}
-              className={cn(
-                'px-2 py-1 rounded text-xs border transition-colors capitalize',
-                category === cat
-                  ? 'bg-blue-500/20 border-blue-500/50 text-blue-300'
-                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500',
-              )}
-            >
-              {cat}
-            </button>
+
+        {/* Category */}
+        <select
+          value={category}
+          onChange={e => setCategory(e.target.value)}
+          className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+        >
+          {categories.map(c => (
+            <option key={c} value={c}>{c === 'all' ? 'All Categories' : c}</option>
           ))}
-        </div>
+        </select>
+
         {/* Rewards toggle */}
-        <label className="flex items-center gap-2 cursor-pointer ml-auto">
+        <label className="flex items-center gap-2 cursor-pointer" onClick={() => setRewardsOnly(!rewardsOnly)}>
+          <div className={`w-8 h-4 rounded-full transition-colors ${rewardsOnly ? 'bg-yellow-500' : 'bg-slate-700'}`}>
+            <div className={`w-3 h-3 bg-white rounded-full mt-0.5 transition-transform ${rewardsOnly ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          </div>
           <span className="text-xs text-slate-400">Rewards only</span>
-          <button
-            onClick={() => setRewardsOnly(!rewardsOnly)}
-            className={cn(
-              'w-8 h-4 rounded-full transition-colors relative',
-              rewardsOnly ? 'bg-green-500' : 'bg-slate-700',
-            )}
-          >
-            <span className={cn(
-              'absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform',
-              rewardsOnly ? 'translate-x-4' : 'translate-x-0.5',
-            )} />
-          </button>
         </label>
+
+        {/* Refresh */}
+        <button
+          onClick={refresh}
+          className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1 transition-colors"
+        >
+          ↻ {loading ? 'Loading…' : 'Refresh'}
+        </button>
+
+        {lastUpdated && (
+          <span className="text-xs text-slate-600">
+            {timeSince(lastUpdated)}
+          </span>
+        )}
       </div>
+
+      {error && (
+        <div className="px-4 py-3 bg-red-900/20 border-b border-red-800/40 text-xs text-red-400">
+          ⚠ API error: {error}. Retrying in 30s…
+        </div>
+      )}
 
       {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-800">
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Market</th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Cat</th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">YES</th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">NO</th>
-              {SORT_COLS.map(col => (
-                <th
-                  key={col.key}
-                  onClick={() => toggleSort(col.key)}
-                  className="px-3 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap cursor-pointer hover:text-slate-200 select-none"
-                >
-                  {col.label} {sortBy === col.key ? (sortAsc ? '↑' : '↓') : ''}
-                </th>
-              ))}
-              <th className="px-3 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">Ends</th>
+              <th className="py-2 px-3 text-left text-[10px] uppercase tracking-wider text-slate-500">Market</th>
+              <th className="py-2 px-3 text-right text-[10px] uppercase tracking-wider text-slate-500">YES / NO</th>
+              <th className="py-2 px-3 text-left text-[10px] uppercase tracking-wider text-slate-500">Bar</th>
+              <SortTh k="volume_24h"   label="Vol 24h" />
+              <SortTh k="liquidity"    label="Liquidity" />
+              <SortTh k="reward_score" label="Score" />
+              <SortTh k="spread"       label="Spread" />
+              <SortTh k="end_date"     label="Ends" />
             </tr>
           </thead>
           <tbody>
             {loading && filtered.length === 0 ? (
-              Array.from({ length: 6 }).map((_, i) => (
-                <tr key={i} className="border-b border-slate-800/50">
-                  {Array.from({ length: 9 }).map((_, j) => (
-                    <td key={j} className="px-3 py-3">
-                      <div className="h-3 bg-slate-800 rounded animate-pulse" style={{ width: `${40 + (i * j * 7) % 50}%` }} />
+              Array.from({ length: 8 }).map((_, i) => (
+                <tr key={i} className="border-b border-slate-800/60">
+                  {Array.from({ length: 8 }).map((_, j) => (
+                    <td key={j} className="py-3 px-3">
+                      <div className="h-3 bg-slate-800 rounded animate-pulse" />
                     </td>
                   ))}
                 </tr>
               ))
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-slate-500 text-sm">
-                  No markets match your filters
+                <td colSpan={8} className="py-12 text-center text-slate-500 text-sm">
+                  No markets found. Try adjusting filters.
                 </td>
               </tr>
             ) : (
-              filtered.slice(0, 50).map(m => <MarketRow key={m.condition_id} m={m} />)
+              filtered.map(m => <MarketRow key={m.condition_id} m={m} />)
             )}
           </tbody>
         </table>
       </div>
-      <div className="px-5 py-3 border-t border-slate-800 text-xs text-slate-500">
-        Showing {Math.min(filtered.length, 50)} of {filtered.length} markets · Auto-refreshes every 30s
+
+      <div className="px-4 py-2 border-t border-slate-800 text-xs text-slate-600">
+        Showing {filtered.length} of {hook.markets.length} markets · Auto-refreshes every 30s
       </div>
     </div>
   )
