@@ -1,217 +1,193 @@
 'use client'
-import { cn } from '@/lib/utils'
-import type { LiveMarket } from '@/lib/gamma'
+import { type LiveMarket } from '@/lib/gamma'
+import { fmt$ } from '@/lib/utils'
 
 interface Props {
   markets: LiveMarket[]
-  loading?: boolean
+  loading: boolean
 }
 
-// ── Airdrop tier thresholds (based on Polymarket $POLY research) ──────────
-// Polymarket rewards: volume, unique markets, consistency, LP provision
-// Tiers based on community research and official hints
-
-interface Tier {
-  name: string
-  emoji: string
-  minScore: number
-  color: string
-  border: string
-  description: string
-}
-
-const TIERS: Tier[] = [
-  {
-    name: 'Diamond',
-    emoji: '💎',
-    minScore: 85,
-    color: 'text-cyan-300',
-    border: 'border-cyan-500/40',
-    description: 'Top-tier farmer — maximum airdrop allocation',
-  },
-  {
-    name: 'Gold',
-    emoji: '🥇',
-    minScore: 60,
-    color: 'text-yellow-300',
-    border: 'border-yellow-500/40',
-    description: 'Active power user — strong airdrop likely',
-  },
-  {
-    name: 'Silver',
-    emoji: '🥈',
-    minScore: 35,
-    color: 'text-slate-300',
-    border: 'border-slate-500/40',
-    description: 'Regular trader — moderate airdrop expected',
-  },
-  {
-    name: 'Bronze',
-    emoji: '🥉',
-    minScore: 0,
-    color: 'text-orange-400',
-    border: 'border-orange-700/40',
-    description: 'Casual user — small allocation possible',
-  },
-]
-
-function getTier(score: number): Tier {
-  return TIERS.find(t => score >= t.minScore) ?? TIERS[TIERS.length - 1]
-}
-
-// ── Score sub-metrics derived from market data ────────────────────────────
-
-interface SubScore {
+interface ScoreCategory {
   label: string
-  value: number
+  score: number
   max: number
-  tip: string
+  description: string
+  color: string
 }
 
-function computeSubScores(markets: LiveMarket[]): SubScore[] {
-  const rewardMarkets  = markets.filter(m => m.has_rewards)
+function computeAirdropScore(markets: LiveMarket[]): {
+  total: number
+  categories: ScoreCategory[]
+  tier: string
+  tierColor: string
+  tierEmoji: string
+} {
+  if (markets.length === 0) {
+    return {
+      total: 0,
+      categories: [],
+      tier: 'No Data',
+      tierColor: 'text-slate-500',
+      tierEmoji: '❓',
+    }
+  }
+
+  // 1. Reward Markets (30 pts) — how many reward markets are active
+  const rewardMarkets = markets.filter(m => m.has_rewards).length
+  const rewardScore   = Math.min(30, Math.round((rewardMarkets / Math.max(markets.length, 1)) * 30 * 3))
+
+  // 2. Market Diversity (25 pts) — unique categories engaged
+  const uniqueCats   = new Set(markets.map(m => m.category).filter(Boolean)).size
+  const diversityScore = Math.min(25, Math.round((uniqueCats / 8) * 25))
+
+  // 3. Liquidity Depth (25 pts) — total liquidity available
   const totalLiquidity = markets.reduce((s, m) => s + m.liquidity, 0)
-  const totalVolume    = markets.reduce((s, m) => s + m.volume_24h, 0)
-  const categories     = new Set(markets.map(m => m.category)).size
-  const avgScore       = markets.length
-    ? markets.reduce((s, m) => s + m.reward_score, 0) / markets.length
-    : 0
+  const liquidityScore = Math.min(25, Math.round((totalLiquidity / 10_000_000) * 25))
 
-  return [
-    {
-      label: 'Reward Markets',
-      value: Math.min(30, rewardMarkets.length * 2),
-      max: 30,
-      tip: `${rewardMarkets.length} active reward markets tracked`,
-    },
-    {
-      label: 'Market Diversity',
-      value: Math.min(25, categories * 5),
-      max: 25,
-      tip: `${categories} categories — breadth signals genuine engagement`,
-    },
-    {
-      label: 'Liquidity Depth',
-      value: Math.min(25, Math.round((totalLiquidity / 2_000_000) * 25)),
-      max: 25,
-      tip: `$${(totalLiquidity / 1e6).toFixed(1)}M total liquidity in tracked markets`,
-    },
-    {
-      label: 'Volume Activity',
-      value: Math.min(20, Math.round((totalVolume / 5_000_000) * 20)),
-      max: 20,
-      tip: `$${(totalVolume / 1e6).toFixed(1)}M 24h volume across tracked markets`,
-    },
-  ]
+  // 4. Volume Activity (20 pts) — 24h volume signals active farming
+  const totalVol24h  = markets.reduce((s, m) => s + m.volume_24h, 0)
+  const volumeScore  = Math.min(20, Math.round((totalVol24h / 50_000_000) * 20))
+
+  const total = rewardScore + diversityScore + liquidityScore + volumeScore
+
+  let tier = 'Bronze', tierColor = 'text-orange-400', tierEmoji = '🥉'
+  if (total >= 85) { tier = 'Diamond'; tierColor = 'text-cyan-300'; tierEmoji = '💎' }
+  else if (total >= 70) { tier = 'Platinum'; tierColor = 'text-slate-300'; tierEmoji = '🏆' }
+  else if (total >= 55) { tier = 'Gold'; tierColor = 'text-yellow-400'; tierEmoji = '🥇' }
+  else if (total >= 35) { tier = 'Silver'; tierColor = 'text-slate-400'; tierEmoji = '🥈' }
+
+  return {
+    total,
+    tier,
+    tierColor,
+    tierEmoji,
+    categories: [
+      {
+        label: 'Reward Markets',
+        score: rewardScore,
+        max: 30,
+        description: `${rewardMarkets} active reward markets tracked`,
+        color: 'bg-yellow-400',
+      },
+      {
+        label: 'Market Diversity',
+        score: diversityScore,
+        max: 25,
+        description: `${uniqueCats} categories — breadth signals genuine engagement`,
+        color: 'bg-blue-400',
+      },
+      {
+        label: 'Liquidity Depth',
+        score: liquidityScore,
+        max: 25,
+        description: `${fmt$(markets.reduce((s, m) => s + m.liquidity, 0), 1)} total liquidity in tracked markets`,
+        color: 'bg-green-400',
+      },
+      {
+        label: 'Volume Activity',
+        score: volumeScore,
+        max: 20,
+        description: `${fmt$(markets.reduce((s, m) => s + m.volume_24h, 0), 1)} 24h volume across tracked markets`,
+        color: 'bg-purple-400',
+      },
+    ],
+  }
 }
-
-// ── Farming tips based on market data ────────────────────────────────────
-
-function FarmingTips({ markets }: { markets: LiveMarket[] }) {
-  const topReward = markets
-    .filter(m => m.has_rewards)
-    .sort((a, b) => b.reward_score - a.reward_score)
-    .slice(0, 3)
-
-  const tips = [
-    '✅ Trade in markets with rewards enabled (green dot)',
-    '✅ Keep positions open — LP rewards accrue over time',
-    '✅ Spread trades across multiple categories',
-    '✅ Focus on markets near 50/50 (better reward rates)',
-    '✅ Larger positions = more LP rewards earned',
-  ]
-
-  return (
-    <div className="mt-4 space-y-2">
-      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Farming Strategy</p>
-      {tips.map((tip, i) => (
-        <p key={i} className="text-xs text-slate-400">{tip}</p>
-      ))}
-      {topReward.length > 0 && (
-        <div className="mt-3">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-            Top Reward Markets Right Now
-          </p>
-          {topReward.map(m => (
-            <a
-              key={m.condition_id}
-              href={`https://polymarket.com/event/${m.slug}`}
-              target="_blank"
-              rel="noreferrer"
-              className="block text-xs text-blue-400 hover:text-blue-300 truncate"
-            >
-              → {m.question.slice(0, 60)}{m.question.length > 60 ? '…' : ''}
-            </a>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Main component ────────────────────────────────────────────────────────
 
 export default function AirdropScore({ markets, loading }: Props) {
-  const subScores  = computeSubScores(markets)
-  const totalScore = subScores.reduce((s, m) => s + m.value, 0)
-  const maxScore   = subScores.reduce((s, m) => s + m.max, 0)
-  const pct        = Math.round((totalScore / maxScore) * 100)
-  const tier       = getTier(pct)
+  const { total, categories, tier, tierColor, tierEmoji } = computeAirdropScore(markets)
+
+  const topOpps = markets
+    .filter(m => m.volume_24h > 5_000 && m.spread > 0)
+    .sort((a, b) => (b.volume_24h * b.spread) - (a.volume_24h * a.spread))
+    .slice(0, 5)
 
   return (
-    <div className={cn(
-      'rounded-xl border bg-slate-900/60 p-5 backdrop-blur-sm space-y-4',
-      tier.border,
-    )}>
-      {/* Header */}
+    <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
       <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-300">$POLY Airdrop Score</h3>
-          <p className="text-xs text-slate-500 mt-0.5">Based on live market activity</p>
+        <h2 className="text-sm font-semibold text-slate-200">$POLY Airdrop Score</h2>
+        <span className="text-xs text-slate-500">Live market activity</span>
+      </div>
+
+      {/* Score ring */}
+      <div className="flex items-center gap-4">
+        <div className="relative w-20 h-20 flex-shrink-0">
+          <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="32" fill="none" stroke="#1e293b" strokeWidth="8" />
+            <circle
+              cx="40" cy="40" r="32"
+              fill="none"
+              stroke={loading ? '#334155' : total >= 70 ? '#22d3ee' : total >= 55 ? '#facc15' : total >= 35 ? '#94a3b8' : '#f97316'}
+              strokeWidth="8"
+              strokeLinecap="round"
+              strokeDasharray={`${2 * Math.PI * 32}`}
+              strokeDashoffset={`${2 * Math.PI * 32 * (1 - total / 100)}`}
+              className="transition-all duration-700"
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-xl font-bold text-slate-100 font-mono">{loading ? '…' : total}</span>
+            <span className="text-[10px] text-slate-500">/ 100</span>
+          </div>
         </div>
-        <div className="text-right">
-          <p className={cn('text-3xl font-bold font-mono', tier.color)}>
-            {loading ? '—' : pct}
+        <div>
+          <p className={`text-lg font-bold ${tierColor}`}>{tierEmoji} {tier} Tier</p>
+          <p className="text-xs text-slate-500 mt-0.5 leading-snug">
+            {tier === 'Bronze' && 'Casual user — small allocation possible'}
+            {tier === 'Silver' && 'Active trader — solid airdrop chance'}
+            {tier === 'Gold'   && 'Power user — strong allocation expected'}
+            {tier === 'Platinum' && 'Top-tier farmer — high allocation likely'}
+            {tier === 'Diamond' && 'Elite farmer — maximum allocation'}
+            {tier === 'No Data' && 'Loading market data…'}
           </p>
-          <p className="text-xs text-slate-500">/ 100</p>
         </div>
       </div>
 
-      {/* Tier badge */}
-      <div className={cn(
-        'flex items-center gap-2 px-3 py-2 rounded-lg border',
-        tier.border, 'bg-slate-800/40',
-      )}>
-        <span className="text-xl">{tier.emoji}</span>
-        <div>
-          <p className={cn('text-sm font-semibold', tier.color)}>{tier.name} Tier</p>
-          <p className="text-xs text-slate-500">{tier.description}</p>
-        </div>
-      </div>
-
-      {/* Sub-scores */}
-      <div className="space-y-3">
-        {subScores.map(sub => (
-          <div key={sub.label}>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-slate-400">{sub.label}</span>
-              <span className="text-xs font-mono text-slate-300">
-                {loading ? '—' : sub.value}/{sub.max}
-              </span>
+      {/* Category breakdown */}
+      <div className="space-y-2.5">
+        {categories.map(cat => (
+          <div key={cat.label}>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-xs text-slate-400">{cat.label}</span>
+              <span className="text-xs font-mono text-slate-300">{cat.score} / {cat.max}</span>
             </div>
             <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-500"
-                style={{ width: loading ? '0%' : `${(sub.value / sub.max) * 100}%` }}
+                className={`h-full ${cat.color} rounded-full transition-all duration-700`}
+                style={{ width: `${(cat.score / cat.max) * 100}%` }}
               />
             </div>
-            <p className="text-[10px] text-slate-600 mt-0.5">{sub.tip}</p>
+            <p className="text-[10px] text-slate-600 mt-0.5">{cat.description}</p>
           </div>
         ))}
       </div>
 
-      {/* Farming tips */}
-      {!loading && <FarmingTips markets={markets} />}
+      {/* Top opportunities */}
+      {topOpps.length > 0 && (
+        <div className="pt-2 border-t border-slate-800">
+          <p className="text-xs font-semibold text-slate-400 mb-2">🎯 Top Opportunities</p>
+          <p className="text-[10px] text-slate-600 mb-2">Ranked by volume × spread</p>
+          <div className="space-y-1.5">
+            {topOpps.map(m => (
+              <a
+                key={m.condition_id}
+                href={`https://polymarket.com/event/${m.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between gap-2 p-2 rounded-lg bg-slate-800/60 hover:bg-slate-800 transition-colors group"
+              >
+                <span className="text-[11px] text-slate-300 group-hover:text-blue-400 transition-colors line-clamp-1 flex-1">
+                  {m.question}
+                </span>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <span className="text-[10px] font-mono text-green-400">{Math.round(m.yes_price * 100)}¢</span>
+                  <span className="text-[10px] font-mono text-slate-500">{(m.spread * 100).toFixed(1)}%</span>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
