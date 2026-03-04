@@ -3,7 +3,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
 } from 'recharts'
-import { mockRewardHistory } from '@/lib/api'
+import { mockRewardHistory } from '../lib/api'
 import { useMemo } from 'react'
 
 interface DataPoint {
