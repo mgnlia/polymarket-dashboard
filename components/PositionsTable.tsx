@@ -1,6 +1,6 @@
 'use client'
-import { cn, fmt$, fmtPct } from '../lib/utils'
-import type { Position } from '../lib/api'
+import { cn, fmt$, fmtPct } from '@/lib/utils'
+import type { Position } from '@/lib/api'
 
 export default function PositionsTable({ positions }: { positions: Position[] }) {
   return (
@@ -12,7 +12,7 @@ export default function PositionsTable({ positions }: { positions: Position[] })
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-800">
-              {['Market', 'YES Shares', 'YES Avg', 'NO Shares', 'NO Avg', 'Net Exp.', 'Realized P&L'].map(h => (
+              {['Market','YES Shares','YES Avg','NO Shares','NO Avg','Net Exp.','Realized P&L'].map(h => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
               ))}
             </tr>
