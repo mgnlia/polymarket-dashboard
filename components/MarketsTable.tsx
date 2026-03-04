@@ -1,6 +1,6 @@
 'use client'
-import { cn, categoryBadge, scoreColor, fmtPct, fmt$ } from '../lib/utils'
-import type { Market } from '../lib/api'
+import { cn, categoryBadge, scoreColor, fmtPct, fmt$ } from '@/lib/utils'
+import type { Market } from '@/lib/api'
 
 export default function MarketsTable({ markets }: { markets: Market[] }) {
   return (
@@ -12,7 +12,7 @@ export default function MarketsTable({ markets }: { markets: Market[] }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-800">
-              {['Market', 'Category', 'YES', 'NO', 'Vol 24h', 'Incentive', 'Score'].map(h => (
+              {['Market','Category','YES','NO','Vol 24h','Incentive','Score'].map(h => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
               ))}
             </tr>
@@ -23,7 +23,9 @@ export default function MarketsTable({ markets }: { markets: Market[] }) {
                 <td className="px-4 py-3 max-w-xs">
                   <div className="flex items-center gap-2">
                     <span className="text-slate-200 truncate">{m.question}</span>
-                    {m.is_extreme && <span className="shrink-0 px-1 py-0.5 rounded text-xs bg-red-500/20 text-red-300 border border-red-500/30">EXTREME</span>}
+                    {m.is_extreme && (
+                      <span className="shrink-0 px-1 py-0.5 rounded text-xs bg-red-500/20 text-red-300 border border-red-500/30">EXTREME</span>
+                    )}
                   </div>
                 </td>
                 <td className="px-4 py-3">
