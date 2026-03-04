@@ -50,8 +50,9 @@ export interface Position {
   realized_pnl: number
 }
 
+// Note: no `next: { revalidate }` — incompatible with static export builds
 async function fetchJSON<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, { next: { revalidate: 15 } })
+  const res = await fetch(`${API_BASE}${path}`)
   if (!res.ok) throw new Error(`${path} → ${res.status}`)
   return res.json()
 }
