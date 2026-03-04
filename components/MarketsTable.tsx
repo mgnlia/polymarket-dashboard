@@ -1,6 +1,6 @@
 'use client'
-import { cn, categoryBadge, scoreColor, fmtPct, fmt$ } from '@/lib/utils'
-import type { Market } from '@/lib/api'
+import { cn, categoryBadge, scoreColor, fmtPct, fmt$ } from '../lib/utils'
+import type { Market } from '../lib/api'
 
 export default function MarketsTable({ markets }: { markets: Market[] }) {
   return (
