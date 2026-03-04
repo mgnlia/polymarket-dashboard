@@ -1,6 +1,6 @@
 'use client'
-import { fmt$, fmtPct } from '@/lib/utils'
-import type { RiskSummary, RewardSummary } from '@/lib/api'
+import { fmt$ } from '../lib/utils'
+import type { RiskSummary, RewardSummary } from '../lib/api'
 
 interface Props { risk: RiskSummary; rewards: RewardSummary; marketCount: number }
 
@@ -59,7 +59,7 @@ export default function AirdropScore({ risk, rewards, marketCount }: Props) {
         </div>
         <div className="text-center">
           <div className="text-lg font-bold text-white">{marketCount}</div>
-          <div className="text-xs text-slate-400">Markets MM'd</div>
+          <div className="text-xs text-slate-400">Markets MM&apos;d</div>
         </div>
         <div className="text-center">
           <div className="text-lg font-bold text-white">{monthsActive}mo</div>
