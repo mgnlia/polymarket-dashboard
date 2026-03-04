@@ -1,19 +1,17 @@
 'use client'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts'
-import type { RewardSummary } from '../lib/api'
+import type { RewardSummary } from '@/lib/api'
 
-const COLORS = ['#22c55e', '#60a5fa', '#f59e0b', '#a78bfa', '#f87171', '#34d399']
+const COLORS = ['#22c55e','#60a5fa','#f59e0b','#a78bfa','#f87171','#34d399']
 
 export default function RewardBreakdown({ rewards }: { rewards: RewardSummary }) {
   const data = Object.entries(rewards.by_market).map(([name, value]) => ({ name, value }))
-
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 backdrop-blur-sm">
       <h3 className="text-sm font-semibold text-slate-300 mb-4">Rewards by Market (Today)</h3>
       <ResponsiveContainer width="100%" height={200}>
         <PieChart>
-          <Pie data={data} cx="50%" cy="50%" innerRadius={55} outerRadius={80}
-               paddingAngle={3} dataKey="value">
+          <Pie data={data} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="value">
             {data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
           </Pie>
           <Tooltip
