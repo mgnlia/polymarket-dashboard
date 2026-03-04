@@ -25,6 +25,9 @@ export function categoryColor(cat: string): string {
   return map[cat] ?? 'bg-gray-500/20 text-gray-300 border-gray-500/30'
 }
 
+// alias used by MarketsTable
+export const categoryBadge = categoryColor
+
 export function scoreColor(score: number): string {
   if (score >= 0.7) return 'text-green-400'
   if (score >= 0.4) return 'text-yellow-400'
