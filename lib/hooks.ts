@@ -87,7 +87,7 @@ export function useMarkets(opts: FetchMarketsOptions = {}): UseMarketsReturn {
   const [rewardsOnly,  setRewardsOnly]  = useState(false)
 
   const fetcher = useCallback(
-    () => fetchLiveMarkets({ limit: 100, active: true, ...opts }),
+    () => fetchLiveMarkets({ limit: 100, active: true, closed: false, ...opts }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   )
