@@ -14,7 +14,7 @@ export function fmtUptime(s: number): string {
   return h >= 24 ? `${Math.floor(h / 24)}d ${h % 24}h` : `${h}h ${m}m`
 }
 
-export function categoryBadge(cat: string): string {
+export function categoryColor(cat: string): string {
   const map: Record<string, string> = {
     crypto:    'bg-orange-500/20 text-orange-300 border-orange-500/30',
     politics:  'bg-blue-500/20 text-blue-300 border-blue-500/30',

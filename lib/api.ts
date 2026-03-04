@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? ''
 
 export interface BotStatus {
   status: string
@@ -51,7 +51,7 @@ export interface Position {
 }
 
 async function fetchJSON<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, { cache: 'no-store' })
+  const res = await fetch(`${API_BASE}${path}`, { next: { revalidate: 15 } })
   if (!res.ok) throw new Error(`${path} → ${res.status}`)
   return res.json()
 }
@@ -64,16 +64,16 @@ export const api = {
   positions: () => fetchJSON<{ positions: Position[] }>('/api/positions'),
 }
 
-// ── Mock data (shown when bot API is offline) ──────────────────────────────
+// ── Mock / demo data ───────────────────────────────────────────────────────
 
 export const MOCK_STATUS: BotStatus = {
   status: 'running', uptime_s: 86400, quote_cycles: 1440,
-  markets_quoted: 8, dry_run: true, errors: [],
+  markets_quoted: 5, dry_run: true, errors: [],
 }
 
 export const MOCK_RISK: RiskSummary = {
   cash_usdc: 423.50, total_realized_pnl: 12.80, daily_pnl: 3.20,
-  total_exposure: 76.50, trading_halted: false, halt_reason: null, open_positions: 8,
+  total_exposure: 76.50, trading_halted: false, halt_reason: null, open_positions: 5,
 }
 
 export const MOCK_REWARDS: RewardSummary = {
@@ -86,11 +86,11 @@ export const MOCK_REWARDS: RewardSummary = {
 }
 
 export const MOCK_MARKETS: Market[] = [
-  { condition_id: 'c1', question: 'Will BTC hit $100k by end of 2026?', yes_price: 0.62, no_price: 0.38, volume_24h: 84200, incentive_size: 250, category: 'crypto',     is_extreme: false, reward_score: 0.81 },
-  { condition_id: 'c2', question: 'US midterms — Dems win House?',       yes_price: 0.44, no_price: 0.56, volume_24h: 210000, incentive_size: 500, category: 'politics',   is_extreme: false, reward_score: 0.76 },
-  { condition_id: 'c3', question: 'Fed rate cut before Sep 2026?',       yes_price: 0.71, no_price: 0.29, volume_24h: 54000,  incentive_size: 180, category: 'economics',  is_extreme: false, reward_score: 0.68 },
-  { condition_id: 'c4', question: 'ETH spot ETF approved by SEC?',       yes_price: 0.88, no_price: 0.12, volume_24h: 32000,  incentive_size: 120, category: 'crypto',     is_extreme: true,  reward_score: 0.54 },
-  { condition_id: 'c5', question: 'SpaceX reaches Mars by 2030?',        yes_price: 0.08, no_price: 0.92, volume_24h: 18000,  incentive_size: 80,  category: 'science',    is_extreme: true,  reward_score: 0.41 },
+  { condition_id: 'c1', question: 'Will BTC hit $100k by end of 2026?', yes_price: 0.62, no_price: 0.38, volume_24h: 84200,  incentive_size: 250, category: 'crypto',    is_extreme: false, reward_score: 0.81 },
+  { condition_id: 'c2', question: 'US midterms — Dems win House?',       yes_price: 0.44, no_price: 0.56, volume_24h: 210000, incentive_size: 500, category: 'politics',  is_extreme: false, reward_score: 0.76 },
+  { condition_id: 'c3', question: 'Fed rate cut before Sep 2026?',       yes_price: 0.71, no_price: 0.29, volume_24h: 54000,  incentive_size: 180, category: 'economics', is_extreme: false, reward_score: 0.68 },
+  { condition_id: 'c4', question: 'ETH spot ETF approved by SEC?',       yes_price: 0.88, no_price: 0.12, volume_24h: 32000,  incentive_size: 120, category: 'crypto',    is_extreme: true,  reward_score: 0.54 },
+  { condition_id: 'c5', question: 'SpaceX reaches Mars by 2030?',        yes_price: 0.08, no_price: 0.92, volume_24h: 18000,  incentive_size: 80,  category: 'science',   is_extreme: true,  reward_score: 0.41 },
 ]
 
 export const MOCK_POSITIONS: Position[] = [
@@ -100,14 +100,17 @@ export const MOCK_POSITIONS: Position[] = [
 ]
 
 export function mockRewardHistory() {
-  const today = new Date()
-  return Array.from({ length: 14 }, (_, i) => {
+  // deterministic seed so SSR and client match
+  const base = [3.1,4.2,2.8,5.1,3.9,4.7,3.3,5.8,4.1,3.6,4.9,5.2,4.4,4.2]
+  const pnl  = [0.8,1.2,-0.4,1.8,0.6,2.1,0.3,2.4,1.1,-0.2,1.6,1.9,1.3,1.2]
+  const today = new Date('2026-07-01')
+  return base.map((rewards, i) => {
     const d = new Date(today)
     d.setDate(d.getDate() - (13 - i))
     return {
       date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      rewards: parseFloat((Math.random() * 5 + 2).toFixed(2)),
-      pnl:     parseFloat((Math.random() * 4 - 1).toFixed(2)),
+      rewards,
+      pnl: pnl[i],
     }
   })
 }
