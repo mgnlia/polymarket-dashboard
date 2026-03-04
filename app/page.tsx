@@ -1,4 +1,6 @@
-import { Suspense } from 'react'
+'use client'
+
+import { useEffect, useState, useCallback } from 'react'
 import {
   api,
   MOCK_STATUS, MOCK_RISK, MOCK_REWARDS, MOCK_MARKETS, MOCK_POSITIONS,
@@ -13,25 +15,45 @@ import PositionsTable from '@/components/PositionsTable'
 import AirdropScore from '@/components/AirdropScore'
 import RewardBreakdown from '@/components/RewardBreakdown'
 
-// ── Data fetching (server component, falls back to mock if bot offline) ────
-async function getData() {
-  try {
-    const [status, risk, rewards, marketsResp, positionsResp] = await Promise.all([
-      api.status(), api.risk(), api.rewards(), api.markets(), api.positions(),
-    ])
-    return { status, risk, rewards, markets: marketsResp.markets, positions: positionsResp.positions, live: true }
-  } catch {
-    return {
-      status: MOCK_STATUS, risk: MOCK_RISK, rewards: MOCK_REWARDS,
-      markets: MOCK_MARKETS, positions: MOCK_POSITIONS, live: false,
-    }
-  }
+interface DashData {
+  status: BotStatus
+  risk: RiskSummary
+  rewards: RewardSummary
+  markets: Market[]
+  positions: Position[]
+  live: boolean
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────
-export default async function DashboardPage() {
-  const { status, risk, rewards, markets, positions, live } = await getData()
+const MOCK_DATA: DashData = {
+  status: MOCK_STATUS,
+  risk: MOCK_RISK,
+  rewards: MOCK_REWARDS,
+  markets: MOCK_MARKETS,
+  positions: MOCK_POSITIONS,
+  live: false,
+}
 
+export default function DashboardPage() {
+  const [data, setData] = useState<DashData>(MOCK_DATA)
+
+  const refresh = useCallback(async () => {
+    try {
+      const [status, risk, rewards, marketsResp, positionsResp] = await Promise.all([
+        api.status(), api.risk(), api.rewards(), api.markets(), api.positions(),
+      ])
+      setData({ status, risk, rewards, markets: marketsResp.markets, positions: positionsResp.positions, live: true })
+    } catch {
+      setData(MOCK_DATA)
+    }
+  }, [])
+
+  useEffect(() => {
+    refresh()
+    const id = setInterval(refresh, 15_000)
+    return () => clearInterval(id)
+  }, [refresh])
+
+  const { status, risk, rewards, markets, positions, live } = data
   const pnlPositive = risk.daily_pnl >= 0
 
   return (
@@ -40,7 +62,6 @@ export default async function DashboardPage() {
       <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* Logo */}
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center text-xs font-black text-white">P</div>
             <div>
               <h1 className="text-base font-bold text-white leading-none">Polymarket MM</h1>
@@ -62,12 +83,7 @@ export default async function DashboardPage() {
 
         {/* ── KPI row ── */}
         <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          <StatCard
-            label="Portfolio"
-            value={fmt$(risk.cash_usdc)}
-            sub="Available USDC"
-            trend="neutral"
-          />
+          <StatCard label="Portfolio" value={fmt$(risk.cash_usdc)} sub="Available USDC" trend="neutral" />
           <StatCard
             label="Daily P&L"
             value={(pnlPositive ? '+' : '') + fmt$(risk.daily_pnl)}
@@ -81,26 +97,9 @@ export default async function DashboardPage() {
             trend={risk.total_realized_pnl >= 0 ? 'up' : 'down'}
             valueClass={risk.total_realized_pnl >= 0 ? 'text-green-400' : 'text-red-400'}
           />
-          <StatCard
-            label="Today Rewards"
-            value={fmt$(rewards.today_usdc)}
-            sub={`Week: ${fmt$(rewards.week_usdc)}`}
-            trend="up"
-            valueClass="text-green-400"
-          />
-          <StatCard
-            label="Total Rewards"
-            value={fmt$(rewards.total_usdc)}
-            sub={`Month: ${fmt$(rewards.month_usdc)}`}
-            trend="up"
-            valueClass="text-green-400"
-          />
-          <StatCard
-            label="Uptime"
-            value={fmtUptime(status.uptime_s)}
-            sub={`${status.quote_cycles} cycles`}
-            trend="neutral"
-          />
+          <StatCard label="Today Rewards" value={fmt$(rewards.today_usdc)} sub={`Week: ${fmt$(rewards.week_usdc)}`} trend="up" valueClass="text-green-400" />
+          <StatCard label="Total Rewards" value={fmt$(rewards.total_usdc)} sub={`Month: ${fmt$(rewards.month_usdc)}`} trend="up" valueClass="text-green-400" />
+          <StatCard label="Uptime" value={fmtUptime(status.uptime_s)} sub={`${status.quote_cycles} cycles`} trend="neutral" />
         </section>
 
         {/* ── Chart + Airdrop ── */}
@@ -126,7 +125,6 @@ export default async function DashboardPage() {
 
         {/* ── Bot details ── */}
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {/* Error log */}
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 backdrop-blur-sm">
             <h3 className="text-sm font-semibold text-slate-300 mb-3">Bot Error Log</h3>
             {status.errors.length === 0 ? (
@@ -140,17 +138,16 @@ export default async function DashboardPage() {
             )}
           </div>
 
-          {/* Risk panel */}
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 backdrop-blur-sm">
             <h3 className="text-sm font-semibold text-slate-300 mb-3">Risk Summary</h3>
             <div className="space-y-2 text-sm">
               {[
-                ['Open Positions',  risk.open_positions.toString()],
-                ['Total Exposure',  fmt$(risk.total_exposure)],
-                ['Trading Status',  risk.trading_halted ? '🔴 HALTED' : '🟢 Active'],
-                ['Halt Reason',     risk.halt_reason ?? '—'],
-                ['Quote Cycles',    status.quote_cycles.toString()],
-                ['Markets Quoted',  status.markets_quoted.toString()],
+                ['Open Positions', risk.open_positions.toString()],
+                ['Total Exposure', fmt$(risk.total_exposure)],
+                ['Trading Status', risk.trading_halted ? '🔴 HALTED' : '🟢 Active'],
+                ['Halt Reason', risk.halt_reason ?? '—'],
+                ['Quote Cycles', status.quote_cycles.toString()],
+                ['Markets Quoted', status.markets_quoted.toString()],
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between items-center py-1 border-b border-slate-800/50">
                   <span className="text-slate-400">{k}</span>
@@ -161,7 +158,6 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        {/* ── Footer ── */}
         <footer className="text-center text-xs text-slate-600 pb-4">
           Polymarket MM Dashboard · Auto-refreshes every 15s ·{' '}
           {live ? (
