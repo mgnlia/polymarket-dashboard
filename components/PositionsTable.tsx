@@ -1,6 +1,6 @@
 'use client'
-import { cn, fmt$, fmtPct } from '@/lib/utils'
-import type { Position } from '@/lib/api'
+import { cn, fmt$, fmtPct } from '../lib/utils'
+import type { Position } from '../lib/api'
 
 export default function PositionsTable({ positions }: { positions: Position[] }) {
   return (
