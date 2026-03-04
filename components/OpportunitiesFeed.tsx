@@ -1,74 +1,63 @@
 'use client'
 import { useOpportunities } from '@/lib/hooks'
-import { fmt$, fmtPct, cn } from '@/lib/utils'
+import { fmt$, fmtPct } from '@/lib/utils'
 
 export default function OpportunitiesFeed() {
-  const { data: opps, loading, lastUpdated } = useOpportunities(8)
+  const { data: opps, loading, error, lastUpdated } = useOpportunities(8)
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden backdrop-blur-sm">
-      <div className="px-5 py-4 border-b border-slate-800 flex items-center gap-2">
-        <span className="text-lg">🎯</span>
-        <h3 className="text-sm font-semibold text-slate-300">Top Opportunities</h3>
-        {loading && <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse ml-auto" />}
+    <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-slate-200">🔥 Live Opportunities</h2>
         {lastUpdated && (
-          <span className="text-xs text-slate-500 ml-auto">
+          <span className="text-[10px] text-slate-600">
             {lastUpdated.toLocaleTimeString()}
           </span>
         )}
       </div>
-      <div className="divide-y divide-slate-800/60">
-        {loading && opps.length === 0
-          ? Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="px-5 py-3 flex items-center gap-3">
-                <div className="flex-1 h-3 bg-slate-800 rounded animate-pulse" />
-                <div className="w-16 h-3 bg-slate-800 rounded animate-pulse" />
-              </div>
-            ))
-          : opps.map((m, i) => {
-              const score = (m.volume_24h * m.spread) / 1_000
-              return (
-                <a
-                  key={m.condition_id}
-                  href={`https://polymarket.com/event/${m.slug}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-start gap-3 px-5 py-3 hover:bg-slate-800/40 transition-colors group"
-                >
-                  {/* Rank */}
-                  <span className="text-xs font-mono text-slate-600 w-5 shrink-0 pt-0.5">
-                    #{i + 1}
+      <p className="text-[10px] text-slate-600">High-volume markets with wide spreads — best for market making rewards</p>
+
+      {error && (
+        <p className="text-xs text-red-400">⚠ {error}</p>
+      )}
+
+      <div className="space-y-2">
+        {loading && opps.length === 0 ? (
+          Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-12 bg-slate-800 rounded-lg animate-pulse" />
+          ))
+        ) : opps.length === 0 ? (
+          <p className="text-xs text-slate-500 py-4 text-center">No opportunities found</p>
+        ) : (
+          opps.map(m => (
+            <a
+              key={m.condition_id}
+              href={`https://polymarket.com/event/${m.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block p-3 rounded-lg bg-slate-800/60 hover:bg-slate-800 transition-colors group border border-slate-800 hover:border-slate-700"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-[11px] text-slate-300 group-hover:text-blue-400 transition-colors line-clamp-2 leading-snug flex-1">
+                  {m.question}
+                </p>
+                {m.has_rewards && (
+                  <span className="text-[9px] text-yellow-400 bg-yellow-400/10 px-1 py-0.5 rounded font-semibold flex-shrink-0">
+                    REWARDS
                   </span>
-                  {/* Market info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-slate-300 line-clamp-2 group-hover:text-slate-100 transition-colors">
-                      {m.question}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] text-slate-500 capitalize">{m.category}</span>
-                      <span className="text-[10px] text-slate-600">·</span>
-                      <span className="text-[10px] font-mono text-green-400">{fmtPct(m.yes_price)}</span>
-                      <span className="text-[10px] text-slate-600">/</span>
-                      <span className="text-[10px] font-mono text-red-400">{fmtPct(m.no_price)}</span>
-                    </div>
-                  </div>
-                  {/* Metrics */}
-                  <div className="shrink-0 text-right">
-                    <p className="text-xs font-mono text-slate-200">{fmt$(m.volume_24h, 0)}</p>
-                    <p className="text-[10px] font-mono text-yellow-400">
-                      {(m.spread * 100).toFixed(1)}% spread
-                    </p>
-                    <p className="text-[10px] text-slate-500">
-                      score {score.toFixed(0)}
-                    </p>
-                  </div>
-                </a>
-              )
-            })
-        }
-      </div>
-      <div className="px-5 py-2 border-t border-slate-800 text-xs text-slate-500">
-        Ranked by volume × spread · click to open on Polymarket
+                )}
+              </div>
+              <div className="flex items-center gap-3 mt-1.5">
+                <span className="text-[10px] font-mono text-green-400">YES {Math.round(m.yes_price * 100)}¢</span>
+                <span className="text-[10px] font-mono text-red-400">NO {Math.round(m.no_price * 100)}¢</span>
+                <span className="text-[10px] font-mono text-slate-500">Vol {fmt$(m.volume_24h, 0)}</span>
+                <span className={`text-[10px] font-mono ml-auto ${m.spread > 0.03 ? 'text-orange-400' : 'text-slate-500'}`}>
+                  Spread {fmtPct(m.spread)}
+                </span>
+              </div>
+            </a>
+          ))
+        )}
       </div>
     </div>
   )
